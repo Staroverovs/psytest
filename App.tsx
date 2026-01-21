@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { AVAILABLE_TESTS } from './constants';
 import { TestCard } from './components/TestCard';
@@ -14,9 +15,14 @@ const App: React.FC = () => {
   const [isEmbed, setIsEmbed] = useState(false);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('embed') === 'true') {
-      setIsEmbed(true);
+    // Безопасная проверка URL параметров
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('embed') === 'true' || window.self !== window.top) {
+        setIsEmbed(true);
+      }
+    } catch (e) {
+      console.warn("Embed check failed", e);
     }
   }, []);
 
@@ -41,7 +47,7 @@ const App: React.FC = () => {
 
   return (
     <div className={`min-h-screen flex flex-col ${isEmbed ? 'bg-transparent' : 'bg-slate-50'}`}>
-      {/* Header - скрывается в режиме embed */}
+      {/* Header */}
       {!isEmbed && (
         <header className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
           <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
@@ -78,7 +84,7 @@ const App: React.FC = () => {
             
             <div className="mt-16 bg-blue-50 border border-blue-100 rounded-2xl p-6 max-w-3xl mx-auto text-center shadow-sm">
               <p className="text-blue-800 text-sm leading-relaxed">
-                <strong>Важно:</strong> Данные тесты являются инструментом скрининга и самопознания. Они не заменяют профессиональную диагностику у специалиста. Если вы чувствуете сильный дискомфорт, пожалуйста, обратитесь за помощью к психологу.
+                <strong>Важно:</strong> Данные тесты являются инструментом скрининга и самопознания. Они не заменяют профессиональную диагностику.
               </p>
             </div>
           </div>
@@ -103,16 +109,11 @@ const App: React.FC = () => {
         )}
       </main>
 
-      {/* Footer - скрывается в режиме embed */}
+      {/* Footer */}
       {!isEmbed && (
         <footer className="bg-white border-t border-slate-200 py-8">
           <div className="max-w-6xl mx-auto px-4 text-center">
-             <p className="text-slate-400 text-sm font-medium">© {new Date().getFullYear()} Центр психологии "Диалектика" — Научный подход к вашему спокойствию</p>
-             <div className="mt-2 flex justify-center gap-4 text-xs text-slate-300">
-               <a href="https://cnpp.ru" className="hover:text-teal-500">Сайт центра</a>
-               <span>•</span>
-               <span>Самодиагностика</span>
-             </div>
+             <p className="text-slate-400 text-sm font-medium">© {new Date().getFullYear()} Центр психологии "Диалектика"</p>
           </div>
         </footer>
       )}
