@@ -1,0 +1,5 @@
+{
+  "name": "Dialectica PsychTests",
+  "description": "Платформа психологического тестирования для центра 'Диалектика' (ПРЛ и DERS-36) с интерпретацией результатов через AI.",
+  "requestFramePermissions": []
+}
