@@ -2,38 +2,55 @@
 import { GoogleGenAI } from "@google/genai";
 import { TestResult, TestDefinition } from '../types';
 
-export const getInterpretation = async (result: TestResult, testDef: TestDefinition): Promise<string> => {
+/**
+ * Пытается найти API ключ в различных глобальных хранилищах.
+ * На Vercel для фронтенд-приложений важно использовать префикс VITE_ 
+ * или настраивать билд-стек.
+ */
+const findApiKey = (): string | undefined => {
   try {
-    /**
-     * ПРАВИЛА ПОЛУЧЕНИЯ КЛЮЧА ДЛЯ VERCEL (Client-side):
-     * 1. Стандартные переменные (API_KEY) доступны только на бэкенде.
-     * 2. Для фронтенда (React/Vite) Vercel требует префикс VITE_ или NEXT_PUBLIC_.
-     */
-    
-    // Пытаемся получить ключ из всех возможных мест, где его может оставить сборщик
+    // 1. Стандартный путь для Node/билдеров
     // @ts-ignore
-    const key = process.env.API_KEY || 
-                // @ts-ignore
-                (typeof process !== 'undefined' ? process.env?.VITE_API_KEY : undefined) ||
-                // @ts-ignore
-                (typeof import.meta !== 'undefined' ? import.meta.env?.VITE_API_KEY : undefined);
+    if (typeof process !== 'undefined' && process.env?.API_KEY) return process.env.API_KEY;
+    // @ts-ignore
+    if (typeof process !== 'undefined' && process.env?.VITE_API_KEY) return process.env.VITE_API_KEY;
     
-    if (!key || key === "undefined" || key.length < 10) {
-      console.error("Ключ API не найден. Проверьте консоль и настройки Vercel.");
-      return `
-### ⚠️ ИИ не видит ключ API
+    // 2. Путь для Vite (import.meta)
+    // @ts-ignore
+    if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_KEY) return import.meta.env.VITE_API_KEY;
+    // @ts-ignore
+    if (typeof import.meta !== 'undefined' && import.meta.env?.API_KEY) return import.meta.env.API_KEY;
 
+    // 3. Проверка глобального объекта window (иногда ключи инжектятся туда)
+    // @ts-ignore
+    if (typeof window !== 'undefined' && window._ENV_?.API_KEY) return window._ENV_.API_KEY;
+  } catch (e) {
+    console.warn("Ошибка при поиске API_KEY:", e);
+  }
+  return undefined;
+};
+
+export const getInterpretation = async (result: TestResult, testDef: TestDefinition): Promise<string> => {
+  const key = findApiKey();
+  
+  if (!key || key.length < 10) {
+    console.error("CRITICAL: API_KEY not found in environment.");
+    return `
+### ⚠️ Ошибка доступа к ИИ
+
+Ключ API не найден в настройках вашего приложения на Vercel.
+
+**Как исправить (инструкция для владельца):**
+1. В панели Vercel (Settings -> Environment Variables) убедитесь, что ключ называется **VITE_API_KEY**.
+2. Если вы используете простую загрузку без Vite, убедитесь, что в Vercel в настройках **Build Command** указано что-то вроде \`npm run build\` или \`vite build\`.
+3. Обязательно сделайте **Redeploy** после переименования ключа.
+
+---
 Ваш результат: **${result.totalScore} баллов**.
+    `;
+  }
 
-**Инструкция для владельца сайта:**
-Для того чтобы ИИ заработал на Vercel во фронтенд-приложении, переменная окружения **ОБЯЗАТЕЛЬНО** должна называться так:
-1. Переименуйте в Vercel \`API_KEY\` в **\`VITE_API_KEY\`**.
-2. Нажмите **Redeploy** в панели управления Vercel.
-
-Это необходимо, чтобы сборщик Vite разрешил передать ключ в браузер.
-      `;
-    }
-
+  try {
     const ai = new GoogleGenAI({ apiKey: key });
 
     const isBPD = testDef.id === 'bpd-screen';

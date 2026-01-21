@@ -1,4 +1,5 @@
 
+import { GoogleGenAI } from "@google/genai";
 import React, { useState, useEffect, useRef } from 'react';
 import { AVAILABLE_TESTS } from './constants';
 import { TestCard } from './components/TestCard';
@@ -16,6 +17,18 @@ const App: React.FC = () => {
   const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // Отладочная информация (видна только в консоли F12)
+    console.log("=== Проверка окружения ===");
+    // @ts-ignore
+    console.log("API_KEY (process):", typeof process !== 'undefined' ? (process.env?.API_KEY ? "✅ Найден" : "❌ Нет") : "process undefined");
+    // @ts-ignore
+    console.log("VITE_API_KEY (process):", typeof process !== 'undefined' ? (process.env?.VITE_API_KEY ? "✅ Найден" : "❌ Нет") : "process undefined");
+    // @ts-ignore
+    if (typeof import.meta !== 'undefined') {
+      // @ts-ignore
+      console.log("VITE_API_KEY (import.meta):", import.meta.env?.VITE_API_KEY ? "✅ Найден" : "❌ Нет");
+    }
+    
     try {
       const params = new URLSearchParams(window.location.search);
       if (params.get('embed') === 'true' || window.self !== window.top) {
@@ -37,7 +50,6 @@ const App: React.FC = () => {
       }
     };
 
-    // Отправляем высоту при загрузке, смене вида и изменении размера
     const resizeObserver = new ResizeObserver(() => sendHeight());
     if (contentRef.current) {
       resizeObserver.observe(contentRef.current);
