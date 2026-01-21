@@ -20,11 +20,18 @@ export const Questionnaire: React.FC<QuestionnaireProps> = ({ test, onComplete, 
   const progress = isStarted ? ((currentStep + 1) / totalSteps) * 100 : 0;
 
   useEffect(() => {
-    // При изменении шага скроллим к началу карточки вопроса
+    // Точный скролл к началу карточки при смене вопроса или старте
     if (containerRef.current) {
-      containerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } else {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      const offset = 20; // небольшой отступ сверху
+      const bodyRect = document.body.getBoundingClientRect().top;
+      const elementRect = containerRef.current.getBoundingClientRect().top;
+      const elementPosition = elementRect - bodyRect;
+      const offsetPosition = elementPosition - offset;
+
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth'
+      });
     }
   }, [isStarted, currentStep]);
 
@@ -41,7 +48,7 @@ export const Questionnaire: React.FC<QuestionnaireProps> = ({ test, onComplete, 
         } else {
           finishTest({ ...answers, [currentQuestion.id]: value });
         }
-    }, 200);
+    }, 180);
   };
 
   const finishTest = (finalAnswers: Record<number, number>) => {
@@ -96,16 +103,16 @@ export const Questionnaire: React.FC<QuestionnaireProps> = ({ test, onComplete, 
       return [
         { val: 1, label: "Совсем нет" },
         { val: 2, label: "Несколько дней" },
-        { val: 3, label: "Больше половины дней" },
-        { val: 4, label: "Почти каждый день" }
+        { val: 3, label: "Больше половины" },
+        { val: 4, label: "Каждый день" }
       ];
     }
     if (['bdi-ii', 'bai'].includes(test.id)) {
       return [
         { val: 1, label: "Совсем нет" },
-        { val: 2, label: "Слабо (не беспокоило)" },
-        { val: 3, label: "Умеренно (было неприятно)" },
-        { val: 4, label: "Сильно (почти невыносимо)" }
+        { val: 2, label: "Слабо" },
+        { val: 3, label: "Умеренно" },
+        { val: 4, label: "Сильно" }
       ];
     }
     return [
@@ -118,49 +125,43 @@ export const Questionnaire: React.FC<QuestionnaireProps> = ({ test, onComplete, 
 
   if (!isStarted) {
     return (
-      <div ref={containerRef} className="max-w-2xl mx-auto animate-fade-in-up">
-        <div className="bg-white rounded-3xl shadow-xl border border-slate-100 p-8 md:p-12">
-          <div className="mb-10">
-            <div className="w-12 h-12 bg-teal-50 rounded-2xl flex items-center justify-center text-teal-600 mb-6 shadow-inner">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      <div ref={containerRef} className="max-w-2xl mx-auto animate-fade-in-up px-2">
+        <div className="bg-white rounded-[1.5rem] md:rounded-[2.5rem] shadow-xl border border-slate-100 p-6 md:p-12">
+          <div className="mb-8">
+            <div className="w-10 h-10 bg-teal-50 rounded-xl flex items-center justify-center text-teal-600 mb-5">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
             </div>
-            <h2 className="text-3xl font-black text-slate-800 mb-4 tracking-tight leading-tight">{test.title}</h2>
-            <div className="p-5 bg-teal-50/50 rounded-2xl border border-teal-100">
-               <p className="text-teal-900 text-sm italic font-medium leading-relaxed">{test.description}</p>
+            <h2 className="text-2xl md:text-3xl font-black text-slate-900 mb-4 leading-tight">{test.title}</h2>
+            <div className="p-4 bg-teal-50/50 rounded-xl border border-teal-100">
+               <p className="text-teal-900 text-xs md:text-sm italic font-medium leading-relaxed">{test.description}</p>
             </div>
           </div>
 
-          <div className="space-y-6 mb-12">
-            <h3 className="font-black text-slate-800 flex items-center gap-3 uppercase text-xs tracking-widest">
+          <div className="space-y-4 mb-10">
+            <h3 className="font-black text-slate-800 uppercase text-[10px] tracking-widest">
               Инструкция:
             </h3>
-            <ul className="space-y-5 text-slate-600">
-              <li className="flex gap-4 items-center">
-                <span className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-sm font-black text-teal-600 shrink-0 shadow-sm">1</span>
-                <span className="font-medium text-sm">Отвечайте искренне. Нет «правильных» ответов.</span>
+            <ul className="space-y-3 text-slate-600">
+              <li className="flex gap-3 items-center">
+                <span className="w-6 h-6 bg-white border border-slate-200 rounded-lg flex items-center justify-center text-[10px] font-black text-teal-600 shrink-0 shadow-sm">1</span>
+                <span className="font-medium text-xs">Будьте искренни, нет плохих ответов.</span>
               </li>
-              <li className="flex gap-4 items-center">
-                <span className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-sm font-black text-teal-600 shrink-0 shadow-sm">2</span>
-                <span className="font-medium text-sm">Вспоминайте свое состояние за <strong>последние 2 недели</strong>.</span>
+              <li className="flex gap-3 items-center">
+                <span className="w-6 h-6 bg-white border border-slate-200 rounded-lg flex items-center justify-center text-[10px] font-black text-teal-600 shrink-0 shadow-sm">2</span>
+                <span className="font-medium text-xs">Вспоминайте состояние за 2 недели.</span>
               </li>
-              <li className="flex gap-4 items-center">
-                <span className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-sm font-black text-teal-600 shrink-0 shadow-sm">3</span>
-                <span className="font-medium text-sm">Первая мысль обычно самая верная.</span>
+              <li className="flex gap-3 items-center">
+                <span className="w-6 h-6 bg-white border border-slate-200 rounded-lg flex items-center justify-center text-[10px] font-black text-teal-600 shrink-0 shadow-sm">3</span>
+                <span className="font-medium text-xs">Не раздумывайте слишком долго.</span>
               </li>
             </ul>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-4">
-            <button 
-              onClick={() => setIsStarted(true)} 
-              className="flex-[2] py-5 bg-teal-600 text-white font-black rounded-2xl hover:bg-teal-700 transition-all shadow-xl shadow-teal-100 active:scale-95 uppercase text-sm tracking-widest"
-            >
-              Начать тест
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button onClick={() => setIsStarted(true)} className="flex-[2] py-4 bg-teal-600 text-white font-black rounded-xl hover:bg-teal-700 transition-all shadow-lg active:scale-95 uppercase text-xs tracking-widest">
+              Начать заполнение
             </button>
-            <button 
-              onClick={onCancel} 
-              className="flex-1 py-5 text-slate-400 font-bold hover:text-slate-600 transition-all uppercase text-xs tracking-widest"
-            >
+            <button onClick={onCancel} className="flex-1 py-4 text-slate-400 font-bold hover:text-slate-600 transition-all uppercase text-[10px] tracking-widest">
               Отмена
             </button>
           </div>
@@ -172,42 +173,39 @@ export const Questionnaire: React.FC<QuestionnaireProps> = ({ test, onComplete, 
   const options = getOptions();
 
   return (
-    <div ref={containerRef} className="max-w-2xl mx-auto animate-fade-in">
-      <div className="bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 overflow-hidden">
-        <div className="h-2 bg-slate-100 w-full">
-          <div 
-            className="h-full bg-teal-500 transition-all duration-500 ease-out"
-            style={{ width: `${progress}%` }}
-          ></div>
+    <div ref={containerRef} className="max-w-xl mx-auto animate-fade-in px-2">
+      <div className="bg-white rounded-[1.5rem] md:rounded-[2.5rem] shadow-2xl border border-slate-100 overflow-hidden">
+        <div className="h-1.5 bg-slate-100 w-full">
+          <div className="h-full bg-teal-500 transition-all duration-500 ease-out" style={{ width: `${progress}%` }}></div>
         </div>
 
-        <div className="p-7 md:p-12">
-            <div className="flex justify-between items-center mb-10 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+        <div className="p-6 md:p-10">
+            <div className="flex justify-between items-center mb-8 text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">
                 <span>Вопрос {currentStep + 1} / {totalSteps}</span>
-                <button onClick={onCancel} className="hover:text-red-500 transition-colors bg-slate-50 px-3 py-1 rounded-full border border-slate-100">Прервать</button>
+                <button onClick={onCancel} className="hover:text-red-500 transition-colors uppercase">Прервать</button>
             </div>
 
-            <h2 className="text-xl md:text-2xl font-bold text-slate-900 mb-12 leading-snug">
+            <h2 className="text-lg md:text-xl font-bold text-slate-900 mb-8 leading-snug">
                 {currentQuestion.text}
             </h2>
 
-            <div className={`space-y-4 ${isProcessing ? 'opacity-40 pointer-events-none' : ''}`}>
+            <div className={`space-y-2.5 ${isProcessing ? 'opacity-40 pointer-events-none' : ''}`}>
                 {test.scaleType === 'binary' ? (
-                    <div className="grid grid-cols-2 gap-5">
-                        <button onClick={() => handleAnswer(1)} className="p-8 md:p-12 rounded-3xl border-2 text-center hover:bg-teal-50 hover:border-teal-200 transition-all border-slate-50 text-slate-700 font-black text-2xl active:scale-95 shadow-sm">Да</button>
-                        <button onClick={() => handleAnswer(0)} className="p-8 md:p-12 rounded-3xl border-2 text-center hover:bg-red-50 hover:border-red-100 transition-all border-slate-50 text-slate-700 font-black text-2xl active:scale-95 shadow-sm">Нет</button>
+                    <div className="grid grid-cols-2 gap-3">
+                        <button onClick={() => handleAnswer(1)} className="p-6 md:p-10 rounded-2xl border-2 text-center hover:bg-teal-50 hover:border-teal-200 transition-all border-slate-50 text-slate-700 font-black text-xl active:scale-95 shadow-sm">Да</button>
+                        <button onClick={() => handleAnswer(0)} className="p-6 md:p-10 rounded-2xl border-2 text-center hover:bg-red-50 hover:border-red-100 transition-all border-slate-50 text-slate-700 font-black text-xl active:scale-95 shadow-sm">Нет</button>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 gap-4">
+                    <div className="grid grid-cols-1 gap-2.5">
                         {options.map((opt) => (
                             <button
                                 key={opt.val}
                                 onClick={() => handleAnswer(opt.val)}
-                                className="w-full p-5 md:p-6 rounded-[1.25rem] border-2 text-left transition-all flex justify-between items-center group border-slate-50 bg-slate-50/30 hover:border-teal-400 hover:bg-white text-slate-700 active:scale-[0.98] shadow-sm hover:shadow-md"
+                                className="w-full p-4 rounded-xl border-2 text-left transition-all flex justify-between items-center group border-slate-50 bg-slate-50/50 hover:border-teal-400 hover:bg-white text-slate-700 active:scale-[0.98] shadow-sm"
                             >
-                                <span className="font-bold text-base md:text-lg">{opt.label}</span>
-                                <div className="w-8 h-8 rounded-full border-2 flex items-center justify-center border-slate-200 group-hover:border-teal-400 shrink-0 ml-4 transition-colors">
-                                    <div className={`w-4 h-4 rounded-full transition-all ${answers[currentQuestion.id] === opt.val ? 'bg-teal-600 scale-100' : 'bg-transparent scale-0'}`}></div>
+                                <span className="font-bold text-sm md:text-base">{opt.label}</span>
+                                <div className="w-6 h-6 rounded-full border-2 flex items-center justify-center border-slate-200 group-hover:border-teal-400 shrink-0 ml-3 transition-colors">
+                                    <div className={`w-3 h-3 rounded-full transition-all ${answers[currentQuestion.id] === opt.val ? 'bg-teal-600 scale-100' : 'bg-transparent scale-0'}`}></div>
                                 </div>
                             </button>
                         ))}
@@ -215,16 +213,15 @@ export const Questionnaire: React.FC<QuestionnaireProps> = ({ test, onComplete, 
                 )}
             </div>
             
-            <div className="mt-12 flex justify-between items-center pt-8 border-t border-slate-50">
+            <div className="mt-8 flex justify-between items-center pt-6 border-t border-slate-50">
                 <button 
                     disabled={currentStep === 0 || isProcessing}
                     onClick={() => setCurrentStep(prev => prev - 1)}
-                    className="text-slate-400 font-black text-xs uppercase tracking-widest hover:text-slate-800 disabled:opacity-0 transition-all py-2"
+                    className="text-slate-400 font-black text-[10px] uppercase tracking-widest hover:text-slate-800 disabled:opacity-0 transition-all py-2"
                 >
                     ← Назад
                 </button>
-                <div className="text-[9px] text-slate-300 font-black uppercase tracking-[0.3em] flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 bg-teal-500 rounded-full animate-pulse"></span>
+                <div className="text-[8px] text-slate-300 font-black uppercase tracking-[0.2em]">
                   Dialectica AI Diagnostic
                 </div>
             </div>
