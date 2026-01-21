@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { TestDefinition, TestResult } from '../types';
 
@@ -26,10 +27,14 @@ export const Questionnaire: React.FC<QuestionnaireProps> = ({ test, onComplete, 
         if (currentStep < totalSteps - 1) {
           setCurrentStep(prev => prev + 1);
           setIsProcessing(false);
+          // Скроллим к началу теста на мобилках при смене вопроса
+          if (window.innerWidth < 768) {
+             window.scrollTo({ top: 0, behavior: 'smooth' });
+          }
         } else {
           finishTest({ ...answers, [currentQuestion.id]: value });
         }
-    }, 250);
+    }, 200);
   };
 
   const finishTest = (finalAnswers: Record<number, number>) => {
@@ -43,12 +48,11 @@ export const Questionnaire: React.FC<QuestionnaireProps> = ({ test, onComplete, 
     test.questions.forEach(q => {
         const rawValue = finalAnswers[q.id];
         let scoreValue = rawValue || 0;
-
         const is0to3Scale = ['phq-9', 'gad-7', 'bdi-ii', 'bai'].includes(test.id);
 
         if (test.scaleType === 'likert_5') {
             if (is0to3Scale) {
-              scoreValue = rawValue - 1; // Map 1-4 UI to 0-3 scores
+              scoreValue = rawValue - 1;
             } else if (q.reverse) {
               scoreValue = 6 - rawValue; 
             }
@@ -87,24 +91,23 @@ export const Questionnaire: React.FC<QuestionnaireProps> = ({ test, onComplete, 
       return [
         { val: 1, label: "Совсем нет" },
         { val: 2, label: "Несколько дней" },
-        { val: 3, label: "Больше половины дней" },
+        { val: 3, label: "Больше половины" },
         { val: 4, label: "Почти каждый день" }
       ];
     }
     if (['bdi-ii', 'bai'].includes(test.id)) {
       return [
-        { val: 1, label: "Совсем нет (или не беспокоит)" },
-        { val: 2, label: "Слабо / Незначительно" },
-        { val: 3, label: "Умеренно (неприятно, но терпимо)" },
-        { val: 4, label: "Сильно (почти невыносимо)" }
+        { val: 1, label: "Совсем нет" },
+        { val: 2, label: "Слабо" },
+        { val: 3, label: "Умеренно" },
+        { val: 4, label: "Сильно" }
       ];
     }
     return [
-      { val: 1, label: "Почти никогда" },
+      { val: 1, label: "Никогда" },
       { val: 2, label: "Иногда" },
-      { val: 3, label: "Примерно половину времени" },
-      { val: 4, label: "Часто" },
-      { val: 5, label: "Почти всегда" }
+      { val: 3, label: "Часто" },
+      { val: 4, label: "Почти всегда" }
     ];
   };
 
@@ -113,40 +116,40 @@ export const Questionnaire: React.FC<QuestionnaireProps> = ({ test, onComplete, 
   return (
     <div className="max-w-2xl mx-auto">
       <div className="bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden">
-        <div className="h-2 bg-slate-100 w-full">
+        <div className="h-1.5 bg-slate-100 w-full">
           <div 
             className="h-full bg-teal-500 transition-all duration-300 ease-out"
             style={{ width: `${progress}%` }}
           ></div>
         </div>
 
-        <div className="p-8">
-            <div className="flex justify-between items-center mb-8 text-sm text-slate-400">
-                <span>Вопрос {currentStep + 1} из {totalSteps}</span>
+        <div className="p-5 md:p-8">
+            <div className="flex justify-between items-center mb-6 text-xs font-bold text-slate-400 uppercase tracking-wider">
+                <span>Вопрос {currentStep + 1} / {totalSteps}</span>
                 <button onClick={onCancel} className="hover:text-red-500 transition-colors">Выйти</button>
             </div>
 
-            <h2 className="text-xl md:text-2xl font-medium text-slate-800 mb-8 leading-relaxed">
+            <h2 className="text-lg md:text-2xl font-semibold text-slate-800 mb-8 leading-snug">
                 {currentQuestion.text}
             </h2>
 
             <div className={`space-y-3 ${isProcessing ? 'opacity-50 pointer-events-none' : ''}`}>
                 {test.scaleType === 'binary' ? (
-                    <>
-                        <button onClick={() => handleAnswer(1)} className="w-full p-4 rounded-lg border text-left hover:bg-slate-50 transition-colors border-slate-200 text-slate-700 font-medium">Да</button>
-                        <button onClick={() => handleAnswer(0)} className="w-full p-4 rounded-lg border text-left hover:bg-slate-50 transition-colors border-slate-200 text-slate-700 font-medium">Нет</button>
-                    </>
+                    <div className="grid grid-cols-2 gap-4">
+                        <button onClick={() => handleAnswer(1)} className="p-4 md:p-6 rounded-xl border-2 text-center hover:bg-teal-50 transition-all border-slate-100 text-slate-700 font-bold text-lg active:scale-95">Да</button>
+                        <button onClick={() => handleAnswer(0)} className="p-4 md:p-6 rounded-xl border-2 text-center hover:bg-red-50 transition-all border-slate-100 text-slate-700 font-bold text-lg active:scale-95">Нет</button>
+                    </div>
                 ) : (
                     <div className="grid grid-cols-1 gap-3">
                         {options.map((opt) => (
                             <button
                                 key={opt.val}
                                 onClick={() => handleAnswer(opt.val)}
-                                className="w-full p-4 rounded-lg border text-left transition-all flex justify-between items-center group border-slate-200 hover:border-teal-300 hover:bg-slate-50 text-slate-600"
+                                className="w-full p-4 md:p-5 rounded-xl border-2 text-left transition-all flex justify-between items-center group border-slate-50 hover:border-teal-200 hover:bg-teal-50/30 text-slate-700 active:scale-[0.98]"
                             >
-                                <span className="font-medium">{opt.label}</span>
-                                <div className="w-5 h-5 rounded-full border flex items-center justify-center border-slate-300 group-hover:border-teal-400">
-                                    {answers[currentQuestion.id] === opt.val && <div className="w-3 h-3 bg-teal-600 rounded-full"></div>}
+                                <span className="font-medium text-sm md:text-base">{opt.label}</span>
+                                <div className="w-5 h-5 rounded-full border-2 flex items-center justify-center border-slate-200 group-hover:border-teal-400 shrink-0 ml-3">
+                                    {answers[currentQuestion.id] === opt.val && <div className="w-2.5 h-2.5 bg-teal-600 rounded-full"></div>}
                                 </div>
                             </button>
                         ))}
@@ -154,13 +157,13 @@ export const Questionnaire: React.FC<QuestionnaireProps> = ({ test, onComplete, 
                 )}
             </div>
             
-            <div className="mt-8 flex justify-between">
+            <div className="mt-8">
                 <button 
                     disabled={currentStep === 0 || isProcessing}
                     onClick={() => setCurrentStep(prev => prev - 1)}
-                    className="text-slate-400 hover:text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed px-4 py-2"
+                    className="text-slate-400 font-bold text-sm hover:text-slate-600 disabled:opacity-0 transition-all"
                 >
-                    Назад
+                    ← Назад
                 </button>
             </div>
         </div>
