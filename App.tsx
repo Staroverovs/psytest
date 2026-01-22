@@ -14,12 +14,32 @@ const App: React.FC = () => {
   const [result, setResult] = useState<TestResult | null>(null);
   const [isEmbed, setIsEmbed] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
+  const topAnchorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
       if (params.get('embed') === 'true' || window.self !== window.top) {
         setIsEmbed(true);
+      }
+
+      // Проверка на наличие расшаренного результата в URL
+      const tid = params.get('tid');
+      const score = params.get('score');
+      if (tid && score) {
+        const test = AVAILABLE_TESTS.find(t => t.id === tid);
+        if (test) {
+          const mockResult: TestResult = {
+            testId: tid,
+            totalScore: parseInt(score, 10),
+            maxPossibleScore: 100, // Будет пересчитано в ResultView если нужно
+            answers: {},
+            date: new Date().toISOString()
+          };
+          setActiveTest(test);
+          setResult(mockResult);
+          setView('RESULT');
+        }
       }
     } catch (e) {
       setIsEmbed(false);
@@ -46,30 +66,46 @@ const App: React.FC = () => {
     return () => resizeObserver.disconnect();
   }, [view, isEmbed, activeTest, result]);
 
+  const scrollToTop = () => {
+    if (topAnchorRef.current) {
+      topAnchorRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
   const startTest = (test: TestDefinition) => {
     setActiveTest(test);
     setView('TEST');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setTimeout(scrollToTop, 100);
   };
 
   const handleComplete = (res: TestResult) => {
     setResult(res);
     setView('RESULT');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setTimeout(scrollToTop, 100);
   };
 
   const handleReset = () => {
+    // Очищаем URL от параметров результата при возврате домой
+    const url = new URL(window.location.href);
+    url.searchParams.delete('tid');
+    url.searchParams.delete('score');
+    window.history.replaceState({}, '', url.toString());
+
     setActiveTest(null);
     setResult(null);
     setView('HOME');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setTimeout(scrollToTop, 100);
   };
 
   const showHeader = !isEmbed && view !== 'TEST';
 
   return (
     <div ref={contentRef} className={`min-h-screen flex flex-col ${isEmbed ? 'bg-transparent overflow-hidden' : 'bg-slate-50'}`}>
-      {/* Header - Hides during test for focus */}
+      <div ref={topAnchorRef} className="h-0 w-0 absolute top-0" />
+      
+      {/* Header */}
       {showHeader && (
         <header className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm animate-fade-in">
           <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
@@ -77,11 +113,11 @@ const App: React.FC = () => {
               <div className="w-10 h-10 bg-teal-600 rounded-lg flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-teal-50">D</div>
               <div>
                 <h1 className="text-xl font-bold text-slate-800 leading-none tracking-tight">Диалектика</h1>
-                <p className="text-[10px] text-slate-500 mt-1 uppercase font-bold tracking-widest">Центр психологии</p>
+                <p className="text-[10px] text-slate-500 mt-1 uppercase font-bold tracking-widest text-nowrap">Центр психологии</p>
               </div>
             </div>
             <a href="https://cnpp.ru" target="_blank" rel="noreferrer" className="hidden sm:block text-xs text-teal-600 hover:text-teal-700 font-bold bg-teal-50 px-4 py-2 rounded-xl transition-all border border-teal-100">
-              Перейти на cnpp.ru
+              cnpp.ru
             </a>
           </div>
         </header>
@@ -92,9 +128,9 @@ const App: React.FC = () => {
         {view === 'HOME' && (
           <div className="max-w-6xl mx-auto animate-fade-in-up">
             <div className="text-center max-w-2xl mx-auto mb-10 md:mb-16">
-              <h2 className="text-3xl md:text-4xl font-black text-slate-900 mb-4 tracking-tight">Психологическая диагностика</h2>
+              <h2 className="text-3xl md:text-4xl font-black text-slate-900 mb-4 tracking-tight">Диагностика</h2>
               <p className="text-slate-600 text-base md:text-lg leading-relaxed font-medium">
-                Выберите один из клинически признанных опросников. <br className="hidden md:block" /> Анализ результатов проводится при поддержке ИИ.
+                Выберите опросник для самопроверки. <br className="hidden md:block" /> Анализ проводится при поддержке ИИ.
               </p>
             </div>
             
@@ -129,8 +165,8 @@ const App: React.FC = () => {
       {!isEmbed && (
         <footer className="bg-white border-t border-slate-100 py-8">
           <div className="max-w-6xl mx-auto px-4 text-center">
-             <p className="text-slate-400 text-xs font-bold uppercase tracking-widest italic">
-               © {new Date().getFullYear()} Центр «Диалектика» • Технологии осознанности
+             <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest italic">
+               © {new Date().getFullYear()} Центр «Диалектика» • cnpp.ru
              </p>
           </div>
         </footer>
