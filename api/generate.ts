@@ -1,9 +1,72 @@
 
 import { GoogleGenAI } from "@google/genai";
+import { getStaticInterpretation } from "../utils/staticInterpretations";
 
 export const config = {
   runtime: 'edge',
 };
+
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// --- GEMINI LOGIC ---
+async function generateWithGemini(apiKey: string, prompt: string, retries = 1): Promise<string> {
+  const ai = new GoogleGenAI({ apiKey });
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: prompt,
+    });
+    
+    if (!response.text) throw new Error("Empty response from Gemini");
+    return response.text;
+  } catch (error: any) {
+    const status = error.status || error.response?.status;
+    if ((status === 429 || status === 503) && retries > 0) {
+      await delay(1000);
+      return generateWithGemini(apiKey, prompt, retries - 1);
+    }
+    throw error;
+  }
+}
+
+// --- GROQ LOGIC ---
+async function generateWithGroq(apiKey: string, prompt: string, retries = 1): Promise<string> {
+  try {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "llama-3.3-70b-versatile", // Мощная и быстрая модель
+        messages: [
+          { 
+            role: "system", 
+            content: "Ты — профессиональный клинический психолог. Ты отвечаешь строго в формате Markdown. Твоя задача — дать глубокую, эмпатичную интерпретацию результатов теста." 
+          },
+          { role: "user", content: prompt }
+        ],
+        temperature: 0.6,
+        max_tokens: 2048,
+      }),
+    });
+
+    if (!response.ok) {
+      // Если лимит запросов (429), пробуем еще раз
+      if (response.status === 429 && retries > 0) {
+        await delay(1000);
+        return generateWithGroq(apiKey, prompt, retries - 1);
+      }
+      throw new Error(`Groq API Error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content || "";
+  } catch (error) {
+    throw error;
+  }
+}
 
 export default async function handler(req: Request) {
   if (req.method !== 'POST') {
@@ -12,15 +75,12 @@ export default async function handler(req: Request) {
 
   try {
     const { result, testDef } = await req.json();
-    const apiKey = process.env.API_KEY || process.env.VITE_API_KEY;
-
-    if (!apiKey) {
-      return new Response(JSON.stringify({ error: 'API key not configured on server' }), { status: 500 });
-    }
-
-    const ai = new GoogleGenAI({ apiKey });
     
-    const isDERS = testDef.id === 'ders-36';
+    // Получаем ключи
+    const geminiKey = process.env.API_KEY || process.env.VITE_API_KEY;
+    const groqKey = process.env.GROQ_API_KEY || process.env.VITE_GROQ_API_KEY;
+
+    // Формируем сводку и промпт
     let scoresSummary = `Общий балл: ${result.totalScore} из ${result.maxPossibleScore}.`;
     if (result.subscaleScores && Object.keys(result.subscaleScores).length > 0) {
       scoresSummary += "\nПоказатели по конкретным аспектам:";
@@ -36,37 +96,57 @@ export default async function handler(req: Request) {
       ${scoresSummary}
       
       ИНСТРУКЦИИ ПО КОНТЕНТУ:
-      1. Будьте максимально персонализированы. Не используйте общие фразы. 
-      2. Проанализируйте, какие именно шкалы (если они есть) завышены, и как они могут быть связаны между собой.
-      3. Объясните клиенту "внутреннюю механику" его состояния: почему он может чувствовать то, что чувствует, исходя из этих цифр.
-      4. Дайте 3 конкретных, практически применимых упражнения или совета, подходящих именно под этот профиль баллов.
+      1. Тон голоса: профессиональный, теплый, валидирующий (в стиле КПТ или DBT).
+      2. Не пугайте диагнозами, говорите о состояниях и паттернах.
+      3. Опишите внутреннюю механику: почему такие баллы могли получиться.
+      4. Дайте 3 конкретных микро-практики (дыхание, техники заземления, когнитивные техники).
       
-      ИНСТРУКЦИИ ПО ОФОРМЛЕНИЮ (ДЛЯ МОБИЛЬНЫХ):
-      1. Используйте Markdown. Заголовки только уровня ###.
-      2. Пишите короткими предложениями и абзацами (не более 3-4 строк в абзаце).
-      3. Используйте списки для читаемости.
-      4. Сделайте текст поддерживающим, но профессиональным.
+      ОФОРМЛЕНИЕ (MARKDOWN):
+      Заголовки только ###.
+      Короткие абзацы.
       
-      СТРУКТУРА:
-      ### 🧭 Глубинный анализ вашего состояния
+      СТРУКТУРА ОТВЕТА:
+      ### 🧭 Глубинный анализ состояния
       ### 🧬 Психологический механизм
-      ### 🛠 Персональные рекомендации и практики
+      ### 🛠 Персональные рекомендации
       
-      ОБЯЗАТЕЛЬНОЕ НАЧАЛО: "Я — искусственный интеллект, ассистент центра «Диалектика». Основываясь на ваших ответах, я подготовил следующий разбор:"
-      ОБЯЗАТЕЛЬНЫЙ ФИНАЛ: "Эти данные — повод для бережного внимания к себе. Для глубокой работы приглашаем вас в центр «Диалектика» к нашим специалистам."
+      Начни с: "Я — ИИ-ассистент центра «Диалектика». Основываясь на ваших ответах..."
+      Закончи приглашением в центр «Диалектика» (cnpp.ru).
     `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: prompt,
-    });
+    // --- CASCADE STRATEGY ---
+    
+    // 1. Попытка GEMINI
+    if (geminiKey) {
+      try {
+        const text = await generateWithGemini(geminiKey, prompt);
+        return new Response(JSON.stringify({ text }), { status: 200, headers: {'Content-Type': 'application/json'} });
+      } catch (geminiError) {
+        console.warn("Gemini failed, trying fallback...", geminiError);
+      }
+    }
 
-    return new Response(JSON.stringify({ text: response.text }), {
+    // 2. Попытка GROQ (если Gemini упал или ключа нет)
+    if (groqKey) {
+      try {
+        console.log("Attempting Groq generation...");
+        const text = await generateWithGroq(groqKey, prompt);
+        return new Response(JSON.stringify({ text }), { status: 200, headers: {'Content-Type': 'application/json'} });
+      } catch (groqError) {
+        console.warn("Groq failed, trying static fallback...", groqError);
+      }
+    }
+
+    // 3. STATIC FALLBACK (если все упало)
+    console.warn("All AI services failed/missing. Using static interpretation.");
+    const staticText = getStaticInterpretation(result, testDef);
+    return new Response(JSON.stringify({ text: staticText }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
+
   } catch (error: any) {
-    console.error("API Error:", error);
+    console.error("Critical Server Error:", error);
     return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   }
 }
